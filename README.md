@@ -21,4 +21,4 @@ After configuring the JSON file appropriately,
 the generative capacityh metrics can be computed and visualized 
 by calling the controller script on the config file as follows::
 
-python controller.py config.json
+python controller.py config_vis.json
