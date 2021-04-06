@@ -1,5 +1,3 @@
-# generative_capacity_metrics
-
 README for running visualization code for the following publication:
 
 @article{mcgee2020generative,
