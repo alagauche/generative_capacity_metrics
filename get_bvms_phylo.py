@@ -12,15 +12,17 @@
 Run the script like this:
 <script_name> <msa_as_csv> <msa_type> <msa_protein>
 python get_marginals.py natural_msa.csv natural kinase
+# FIXME docstring above is not correct
 """
-import numpy as np
-import pandas as pd
-from mi3gpu.utils import seqload
-import argparse
 import sys
+from pathlib import Path
 
+import numpy as np
+import fire
 
-def compute_bvms(seqs, q, weights, nrmlz=True):
+from mi3gpu.utils import seqload
+
+def compute_bvms(seqs, q: int, weights, nrmlz=True):
     nSeq, L = seqs.shape
 
     # if weights != '0':
@@ -53,34 +55,15 @@ def compute_bvms(seqs, q, weights, nrmlz=True):
     return ff
 
 
-def get_bvms(label, msa_file, source, dest, A, num_seqs):
+def get_bvms(label: str, msa_file: Path, source: Path, dest: Path, A: int, num_seqs: int):
     # randomSeqs of VAE are in parent_dir, all others are in data_home
     print("inside get_bvms_phylo, calling get_bvms on ", label)
-    # if 'target' in label:
-    #    num_seqs = 10000
 
-    load_name = source + "/" + msa_file
-    bvms_file_name = "bvms_" + label + ".npy"
-    save_name = dest + "/" + bvms_file_name
+    load_name = source / msa_file
+    bvms_file_name = f"bvms_{label}.npy"
+    save_name = dest / bvms_file_name
     msa = seqload.loadSeqs(load_name)[0][:num_seqs]
 
-    """
-    elif label == "natural":
-        bvms_file_name = "bvms_" + label + ".npy"
-        load_name = data_home + "/" + msa_file
-        save_name = parent_dir_name + "/" + bvms_file_name
-        msa = seqload.loadSeqs(load_name)[0]
-    elif label == "mi3Seqs":
-        bvms_file_name = "bvms_" + label + ".npy"
-        load_name = data_home + "/" + msa_file
-        save_name = data_home + "/" + bvms_file_name
-        msa = seqload.loadSeqs(load_name)[0][:num_seqs]
-    else:
-        bvms_file_name = "bvms_" + label + ".npy"
-        load_name = data_home + "/" + msa_file
-        save_name = parent_dir_name + "/" + bvms_file_name
-        msa = seqload.loadSeqs(load_name)[0][:num_seqs]
-    """
     print("\t\t\t\timporting msa for:\t", label, "\t", load_name)
     print("\t\t\t\tfinished msa import for:\t", label)
     print("\t\t\t\tcomputing bvms for:\t", label)
@@ -89,12 +72,5 @@ def get_bvms(label, msa_file, source, dest, A, num_seqs):
     print("\t\t\t\tfinished computing bvms for:\t", label)
     return bvms_file_name
 
-
-get_bvms(
-    sys.argv[1],
-    sys.argv[2],
-    sys.argv[3],
-    sys.argv[4],
-    int(sys.argv[5]),
-    int(sys.argv[6]),
-)
+if __name__ == "__main__":
+    fire.Fire(get_bvms)

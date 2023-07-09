@@ -1,8 +1,5 @@
+# XXX TODO not used
 import numpy as np
-import pandas as pd
-from mi3gpu.utils.seqload import loadSeqs
-import argparse
-import sys
 
 
 def get_marginals(seqs, A, weights, nrmlz=True):
@@ -97,6 +94,7 @@ def get_covars(label, bvms_file, A, parent_dir_name, data_home, model_name):
     else:
         bvms_load_name = data_home + "/" + bvms_file
         save_name = data_home + "/" + covars_file_name
+    # FIXME undefined bimarg
     C = bimarg - indepF(bvms_load_name)
     np.save(save_name, C)
 
@@ -115,6 +113,7 @@ def get_bvms(label, msa_file, A, parent_dir_name, data_home, model_name):
         load_name = data_home + "/" + msa_file
         save_name = data_home + "/" + bvms_file_name
     print("\t\t\t\timporting msa for:\t", label, "\t", load_name)
+    # FIXME undefined seqload
     msa = seqload.loadSeqs(load_name)[0]
     print("\t\t\t\tfinished msa import for:\t", label)
     print("\t\t\t\tcomputing bvms for:\t", label)

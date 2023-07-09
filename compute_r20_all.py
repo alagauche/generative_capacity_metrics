@@ -1,100 +1,16 @@
 #!/usr/bin/env python
-import numpy as np
-from numpy import random
 import sys
-from mi3gpu.utils import seqload
 from multiprocessing import Pool, set_start_method, Lock
+
+import numpy as np
+from scipy.stats import pearsonr as pr
+import fire
+
+from mi3gpu.utils import seqload
 # TODO missing setup & way to compile this
 from highmarg import highmarg
 
 set_start_method("fork")
-
-###############################################################################
-# load data in
-
-print("starting homs_script")
-seq_lim = 10000
-reps = int(sys.argv[1])
-targetSeqs = seqload.loadSeqs(sys.argv[2])[0]
-refSeqs = seqload.loadSeqs(sys.argv[3])[0]
-mi3Seqs = seqload.loadSeqs(sys.argv[4])[0]
-randomSeqs = seqload.loadSeqs(sys.argv[5])[0]
-indepSeqs = seqload.loadSeqs(sys.argv[6])[0]
-ref_trunc = seqload.loadSeqs(sys.argv[7])[0]  # this has only 5.99M from mi3Seqs
-target_trunc = seqload.loadSeqs(sys.argv[8])[0]  # this has only 10K from mi3Seqs
-print("loaded target_trunc")
-deepSeqs = seqload.loadSeqs(sys.argv[9])[0]
-# progenSeqs = seqload.loadSeqs(sys.argv[10])[0]
-parent_dir_name = sys.argv[10]
-start = int(sys.argv[11])
-end = int(sys.argv[12])
-synth_nat = sys.argv[13]
-output_dir = sys.argv[14]
-weights = None
-
-print(len(sys.argv))
-print(sys.argv)
-"""
-if len(sys.argv) > 7:
-    weights = [np.load(sys.argv[7]).astype('f4'), None, None, None]
-    print("using weights")
-"""
-# dataseqs, sampleseqs = dataseqs[:(len(dataseqs)-2*Ns)], dataseqs[-Ns:]
-
-Ntarget = targetSeqs.shape[0]
-# Ndw = np.sum(weights[0]) if weights is not None else Nd
-Nref = refSeqs.shape[0]
-Nm = mi3Seqs.shape[0]
-Nv = randomSeqs.shape[0]
-Ni = indepSeqs.shape[0]
-Nd = deepSeqs.shape[0]
-# Np = progenSeqs.shape[0]
-Nreftrunc = ref_trunc.shape[0]
-Ntargettrunc = target_trunc.shape[0]
-print(
-    "MSA lengths:",
-    "\n\ttarget:\t",
-    Ntarget,
-    "\n\tref:\t",
-    Nref,
-    "\n\tmi3:\t",
-    Nm,
-    "\n\tvae:\t",
-    Nv,
-    "\n\tindep:\t",
-    Ni,
-    "\n\tdeepSeq:\t",
-    Nd,
-    # \n\tprogen:\t", Np,
-    "\n\tref-trunc:\t",
-    Nreftrunc,
-    "\n\ttarget-trunc:\t",
-    Ntargettrunc,
-)
-L = targetSeqs.shape[1]
-
-
-# msas = [trainSeqs, mi3Seqs, randomSeqs, indepSeqs, targetSeqs]    # old line
-msas = [
-    targetSeqs,
-    mi3Seqs,
-    randomSeqs,
-    indepSeqs,
-    deepSeqs,
-    refSeqs,
-    ref_trunc,
-    target_trunc,
-]  # mod line
-# we will get a speedup in get_subseq if msas are in fortran memory-order
-msas = [np.asfortranarray(msa) for msa in msas]
-
-"""
-print("Dataset sizes:")
-print("Data: {}\nModel: {}\nIndep: {}\nFSample: {}".format(Ndw, Nm, Ni, Ns))
-"""
-
-###############################################################################
-
 
 def get_subseq(msa, pos, out=None):
     if out is None:
@@ -110,7 +26,8 @@ def get_subseq(msa, pos, out=None):
 
 
 def job(arg):
-    npos, i, seed = arg
+    # FIXME arg
+    npos, i, seed, L, msas, weights, locks, synth_nat, output_dir = arg
     rng = np.random.default_rng(seed)
 
     pos = np.sort(rng.choice(L, npos, replace=False))
@@ -136,38 +53,40 @@ def job(arg):
         fref_trunc,
         ftarget_trunc,
         locks[npos],
+        synth_nat,
+        output_dir,
     )
     # process_marg(npos, i, pos, ftarget, fm, fv, fi, fd, fp, fref, fref_trunc, ftarget_trunc, locks[npos])
     # process_marg(npos, i, pos, ftarget, fm, fv, fi, fref, fref_trunc, ftarget_trunc, locks[npos])
 
 
-def run_jobs(npos_range, reps):
+def run_jobs(npos_range, reps, L, msas, weights, locks, synth_nat, output_dir):
     root_seed = np.random.SeedSequence()
 
     print("Starting workers...")
     with Pool() as pool:
         pool.map(
             job,
-            ((n, i, root_seed.spawn(1)[0]) for n in npos_range for i in range(reps)),
+            ((n, i, root_seed.spawn(1)[0], L, msas, weights, locks, synth_nat, output_dir) for n in npos_range for i in range(reps)),
         )
-
-
-###############################################################################
-# User-defined statistics here. Define "init_marg_files" and "process_marg"
-from scipy.stats import pearsonr as pr
 
 
 # def process_marg(npos, i, pos, ftarget, fm, fv, fi, fref, fref_trunc, ftarget_trunc, lock):    # orig
 # def process_marg(npos, i, pos, ftarget, fm, fv, fi, fd, fp, fref, fref_trunc, ftarget_trunc, lock):
 def process_marg(
-    npos, i, pos, ftarget, fm, fv, fi, fd, fref, fref_trunc, ftarget_trunc, lock
+    npos, i, pos, ftarget, fm, fv, fi, fd, fref, fref_trunc, ftarget_trunc, lock,
+    synth_nat, output_dir
 ):
     top20d = np.argsort(ftarget)[-20:]
+
     if "nat" in synth_nat:
         top20d_trunc = np.argsort(ftarget_trunc)[
             -20:
         ]  # different target, so sort by that
         # top20s = np.argsort(fs)[-20:]
+    else:
+        # FIXME
+        raise NotImplementedError("only nat is implemented for now")
 
     with lock:
         print(
@@ -202,18 +121,96 @@ def process_marg(
                 )
 
 
-def init_marg_files(npos):
+# XXX this is a hack to clear the file
+def init_marg_files(output_dir, npos):
     # clear file
-    with open(output_dir + "/r20_{}".format(npos), "wt") as f:
+    with open(output_dir / f"r20_{npos}", "wt") as f:
         f.write("")
 
+def main(
+        reps: int,
+        target: str,
+        ref: str,
+        mi3: str,
+        rand: str,
+        indep: str,
+        ref_trunc_name: str,
+        target_trunc_name: str,
+        deep: str,
+        parent_dir_name: str,
+        start: int,
+        end: int,
+        synth_nat: str,
+        output_dir: str,
+        ):
 
-###############################################################################
-# Choose npos to compute, and start jobs
+    ###############################################################################
+    # load data in
 
-npos_range = range(start, end)
-for n in npos_range:
-    init_marg_files(n)
-locks = {n: Lock() for n in npos_range}
+    print("starting homs_script")
+    seq_lim = 10000
+    targetSeqs = seqload.loadSeqs(target)[0]
+    refSeqs = seqload.loadSeqs(ref)[0]
+    mi3Seqs = seqload.loadSeqs(mi3)[0]
+    randomSeqs = seqload.loadSeqs(rand)[0]
+    indepSeqs = seqload.loadSeqs(indep)[0]
+    ref_trunc = seqload.loadSeqs(ref_trunc_name)[0]  # this has only 5.99M from mi3Seqs
+    target_trunc = seqload.loadSeqs(target_trunc_name)[0]  # this has only 10K from mi3Seqs
+    print("loaded target_trunc")
+    deepSeqs = seqload.loadSeqs(deep)[0]
+    weights = None # FIXME XXX is this ever set or needed?
 
-run_jobs(npos_range, reps)
+    Ntarget = targetSeqs.shape[0]
+    Nref = refSeqs.shape[0]
+    Nm = mi3Seqs.shape[0]
+    Nv = randomSeqs.shape[0]
+    Ni = indepSeqs.shape[0]
+    Nd = deepSeqs.shape[0]
+    Nreftrunc = ref_trunc.shape[0]
+    Ntargettrunc = target_trunc.shape[0]
+    print(f"""MSA lengths:
+\ttarget:\t{Ntarget}
+\tref:\t{Nref}
+\tmi3:\t{Nm}
+\tvae:\t{Nv}
+\tindep:\t{Ni}
+\tdeepSeq:\t{Nd}
+\tref-trunc:\t{Nreftrunc}
+\ttarget-trunc:\t{Ntargettrunc}""")
+    L = targetSeqs.shape[1]
+
+    # msas = [trainSeqs, mi3Seqs, randomSeqs, indepSeqs, targetSeqs]    # old line
+    msas = [
+        targetSeqs,
+        mi3Seqs,
+        randomSeqs,
+        indepSeqs,
+        deepSeqs,
+        refSeqs,
+        ref_trunc,
+        target_trunc,
+    ]  # mod line
+    # we will get a speedup in get_subseq if msas are in fortran memory-order
+    msas = [np.asfortranarray(msa) for msa in msas]
+
+    """
+    print("Dataset sizes:")
+    print("Data: {}\nModel: {}\nIndep: {}\nFSample: {}".format(Ndw, Nm, Ni, Ns))
+    """
+
+    ###############################################################################
+
+
+
+    ###############################################################################
+    # Choose npos to compute, and start jobs
+
+    npos_range = range(start, end)
+    for n in npos_range:
+        init_marg_files(output_dir, n)
+    locks = {n: Lock() for n in npos_range}
+
+    run_jobs(npos_range, reps, L, msas, weights, locks, synth_nat, output_dir)
+
+if __name__ == '__main__':
+    fire.Fire(main)

@@ -1,0 +1,64 @@
+stages:
+  all:
+    cmd: python controller.py config_vis.json
+    deps:
+    - config_vis.json
+    - example/indepMSA
+    - example/modelMSA
+    - example/targetMSA
+    outs:
+    - results/some_output
+  energies:
+    cmd: python main.py energies
+    deps:
+    - example/Energies.npz
+  
+  bvms_indep:
+    cmd: python get_bvms_phylo.py indepSeqs bvms_indepSeqs.npy FIXME
+    deps:
+    outs:
+  bvms_mi3:
+    cmd: python get_bvms_phylo.py mi3Seqs bvms_mi3Seqs.npy FIXME
+    deps:
+    outs:
+  bvms_target:
+    cmd: python get_bvms_phylo.py targetSeqs bvms_targetSeqs.npy FIXME
+    deps:
+    outs:
+  bvms_svae:
+    cmd: python get_bvms_phylo.py svaeSeqs bvms_svaeSeqs.npy FIXME
+    deps:
+    outs:
+  bvms_progen:
+    cmd: python get_bvms_phylo.py progenSeqs bvms_progenSeqs.npy FIXME
+    deps:
+    outs:
+  bvms_deep:
+    cmd: python get_bvms_phylo.py deepSeqs bvms_deepSeqs.npy FIXME
+    deps:
+    outs:
+
+  covars_indep:
+    cmd: python get_covars_phylo.py
+    deps:
+    outs:
+  covars_mi3:
+    cmd: python get_covars_phylo.py
+    deps:
+    outs:
+  covars_target:
+    cmd: python get_covars_phylo.py
+    deps:
+    outs:
+  covars_svae:
+    cmd: python get_covars_phylo.py
+    deps:
+    outs:
+  covars_progen:
+    cmd: python get_covars_phylo.py
+    deps:
+    outs:
+  covars_deep:
+    cmd: python get_covars_phylo.py
+    deps:
+    outs:

@@ -1,6 +1,7 @@
-import numpy as np
-import sys
+from pathlib import Path
 
+import numpy as np
+import fire
 
 def getL(size):
     return int(((1 + np.sqrt(1 + 8 * size)) // 2) + 0.5)
@@ -36,14 +37,15 @@ def getM(x, diag_fill=0):
     return M
 
 
-def get_covars(label, bvms_file, path):
+def get_covars(label: str, bvms_file: Path, path: Path):
     # randomSeqs of VAE are in parent_dir, all others are in data_home
 
-    save_name = path + "/covars_" + label + ".npy"
-    bvms_path = path + "/" + bvms_file
+    save_name = path / f"covars_{label}.npy"
+    bvms_path = path / bvms_file
     bimarg = np.load(bvms_path)
     C = bimarg - indepF(bimarg)
     np.save(save_name, C)
 
 
-get_covars(sys.argv[1], sys.argv[2], sys.argv[3])
+if __name__ == '__main__':
+    fire.Fire(get_covars)
