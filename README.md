@@ -21,4 +21,7 @@ After configuring the JSON file appropriately,
 the generative capacityh metrics can be computed and visualized 
 by calling the controller script on the config file as follows::
 
+```
+cd mi3gpu/utils && make
 python controller.py config_vis.json
+```
