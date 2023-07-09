@@ -7,6 +7,7 @@
 
 // compile me with
 // python ./setup.py build_ext --inplace
+// FIXME setup.py file does not exist yet
 
 // Idea: Use a Trie data structure to store the subsequence histogram.
 
