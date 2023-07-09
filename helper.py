@@ -28,18 +28,20 @@ def get_char(chunk, alphabet):
     norm_chunk = get_norm(chunk)
     return np.random.choice(alphabet, 1, p=norm_chunk)[0]
 
+
 def get_norm(chunk):
     chunk /= chunk.sum(axis=-1, keepdims=True)
     return np.clip(chunk, 1e-7, 1 - 1e-7)
 
+
 def get_msa_onehot(msa):
-    alpha = 'ACDEFGHIKLMNPQRSTVWY-'
-    seqs = np.array([[alpha.index(c) for c in s] for s in msa], dtype='u1')
+    alpha = "ACDEFGHIKLMNPQRSTVWY-"
+    seqs = np.array([[alpha.index(c) for c in s] for s in msa], dtype="u1")
 
     N, L = seqs.shape
     q = len(alpha)
 
-    onehot = np.zeros((N, L, q), dtype='u1')
+    onehot = np.zeros((N, L, q), dtype="u1")
     onehot[np.arange(N)[:, None], np.arange(L)[None, :], seqs] = 1
 
     return onehot.reshape((N, L * q))
@@ -63,7 +65,9 @@ def get_splits(splits, msa):
     test_msa = msa_keys[val_end:]
 
     return [train_msa, val_msa, test_msa]
-'''
+
+
+"""
 
 # args-based folder name, for hyperparameter tuning
 def get_parent_dir_name(args):
@@ -75,7 +79,9 @@ def get_parent_dir_name(args):
             dir_name += "_"
     return dir_name
 
-'''
+"""
+
+
 def make_dir(dir_name):
     try:
         if not os.path.exists(dir_name):
@@ -85,5 +91,3 @@ def make_dir(dir_name):
             print("/tDirectory ", dir_name, " already exists")
     except OSError:
         pass
-
-
