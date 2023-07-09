@@ -60,7 +60,6 @@
     "line_width" : 2,
     "line_alpha" : 0.7,
     "label_padding" : 0.3,
-    "box_font_size" : 1.5,
     "box_padding" : 1,
     "marker_size" : 5,
     "color_set" : { 
