@@ -14,21 +14,24 @@
 # You should have received a copy of the GNU General Public License
 # along with Mi3-GPU.  If not, see <http://www.gnu.org/licenses/>.
 #
-#Contact: allan.haldane _AT_ gmail.com
+# Contact: allan.haldane _AT_ gmail.com
 
 import numpy as np
 from mcmcGPU import MCMCGPU
 import time
 
+
 def sumarr(arrlist):
-    #low memory usage (rather than sum(arrlist, axis=0))
+    # low memory usage (rather than sum(arrlist, axis=0))
     tot = arrlist[0].copy()
     for a in arrlist[1:]:
         np.add(tot, a, tot)
     return tot
 
+
 def meanarr(arrlist):
-    return sumarr(arrlist)/len(arrlist)
+    return sumarr(arrlist) / len(arrlist)
+
 
 # optimization: skip reduction ops for inputs with only one element
 def skip_single(f):
@@ -36,10 +39,13 @@ def skip_single(f):
         if len(x) == 1:
             return x[0]
         return f(x)
+
     return skipper
+
 
 # object which manages a set of GPUs on a single node. Provides
 # a basic interface for coordinating computations on a group of GPUs.
+
 
 class GPU_node:
     def __init__(self, gpus):
@@ -49,6 +55,7 @@ class GPU_node:
     @property
     def head_gpu(self):
         return type(self)([self.gpus[0]])
+
     # note this returns a GPU_node with ngpus == 1.
 
     @property
@@ -57,9 +64,9 @@ class GPU_node:
 
     @property
     def nseq(self):
-        ret = {'main': sum(g.nseq['main'] for g in self.gpus)}
-        if 'large' in self.gpus[0].nseq:
-            ret['large'] = sum(g.nseq.get('large', 0) for g in self.gpus)
+        ret = {"main": sum(g.nseq["main"] for g in self.gpus)}
+        if "large" in self.gpus[0].nseq:
+            ret["large"] = sum(g.nseq.get("large", 0) for g in self.gpus)
         return ret
 
     @property
@@ -76,8 +83,8 @@ class GPU_node:
         # it evenly per gpu. Note this is the same in all runs of the program
         # (only the random position gets changed by numpy random seed).
         # mwc64x period is 2**63
-        rng_span = np.uint64(2**63)//np.uint64(self.ngpus) 
-        rng_offsets = [i*rng_span for i in range(self.ngpus)]
+        rng_span = np.uint64(2**63) // np.uint64(self.ngpus)
+        rng_offsets = [i * rng_span for i in range(self.ngpus)]
         self._initMCMC_rng(nsteps, rng_offsets, rng_span)
 
     def _initMCMC_rng(self, nsteps, rng_offsets, rng_span):
@@ -104,7 +111,7 @@ class GPU_node:
         for gpu in self.gpus:
             gpu.runMCMC()
 
-    def calcEnergies(self, seqbufname, Jbufname='J'):
+    def calcEnergies(self, seqbufname, Jbufname="J"):
         for gpu in self.gpus:
             gpu.calcEnergies(seqbufname, Jbufname)
 
@@ -112,11 +119,11 @@ class GPU_node:
         for gpu in self.gpus:
             gpu.calcBicounts(seqbufname)
 
-    def bicounts_to_bimarg(self, seqbufname='main'):
+    def bicounts_to_bimarg(self, seqbufname="main"):
         for gpu in self.gpus:
             gpu.bicounts_to_bimarg(seqbufname)
 
-    def updateJ(self, gamma, pc, Jbuf='dJ'):
+    def updateJ(self, gamma, pc, Jbuf="dJ"):
         for gpu in self.gpus:
             gpu.updateJ(gamma, pc, Jbuf)
 
@@ -158,12 +165,14 @@ class GPU_node:
         return [[fut.read() for fut in buff] for buff in futures]
 
     groupfunc = {
-        'weights': skip_single(np.concatenate),
-        'E': skip_single(np.concatenate),
-        'Bs': skip_single(np.concatenate),
-        'bicount': skip_single(sumarr),
-        'bi': skip_single(meanarr),
-        'seq': skip_single(np.concatenate)}
+        "weights": skip_single(np.concatenate),
+        "E": skip_single(np.concatenate),
+        "Bs": skip_single(np.concatenate),
+        "bicount": skip_single(sumarr),
+        "bi": skip_single(meanarr),
+        "seq": skip_single(np.concatenate),
+    }
+
     def collect(self, bufs):
         if isinstance(bufs, str):
             buftype = bufs.split()[0]
@@ -191,7 +200,6 @@ class GPU_node:
             gpu.fillBuf(bufname, val)
 
     def setSeqs(self, bufname, seqs, log=None):
-        
         if isinstance(seqs, np.ndarray) or len(seqs) == 1:
             # split up seqs into parts for each gpu
             if not isinstance(seqs, np.ndarray):
@@ -200,19 +208,24 @@ class GPU_node:
             nbuf = self.nseq[bufname]
 
             if seqs.shape[0] != nbuf:
-                raise Exception(("Expected {} total sequences, got {}").format(
-                                 nbuf, seqs.shape[0]))
+                raise Exception(
+                    ("Expected {} total sequences, got {}").format(nbuf, seqs.shape[0])
+                )
 
             seqs = np.split(seqs, self.ngpus)
         elif len(seqs) != self.ngpus:
-            raise Exception(("Expected {} sequence bufs, got {}").format(
-                             self.ngpus, len(seqs)))
-        
+            raise Exception(
+                ("Expected {} sequence bufs, got {}").format(self.ngpus, len(seqs))
+            )
+
         if log:
-            log("Transferring {} seqs to gpu's {} seq buffer...".format(
-                                         str([len(s) for s in seqs]), bufname))
-        for n,(gpu,seq) in enumerate(zip(self.gpus, seqs)):
-            gpu.setBuf('seq ' + bufname, seq)
+            log(
+                "Transferring {} seqs to gpu's {} seq buffer...".format(
+                    str([len(s) for s in seqs]), bufname
+                )
+            )
+        for n, (gpu, seq) in enumerate(zip(self.gpus, seqs)):
+            gpu.setBuf("seq " + bufname, seq)
 
     def fillSeqs(self, seq):
         for gpu in self.gpus:
@@ -246,9 +259,9 @@ class GPU_node:
 
         rgpus = self.gpus
         while len(rgpus) > 1:
-            h = (len(rgpus)-1)//2 + 1
+            h = (len(rgpus) - 1) // 2 + 1
             for even, odd in zip(rgpus[:h], rgpus[h:]):
-                even.addBiBuffer('bi', odd.bufs['bi'])
+                even.addBiBuffer("bi", odd.bufs["bi"])
 
             for even in rgpus[:h]:
                 even.wait()
@@ -268,15 +281,15 @@ class GPU_node:
         # don't start transfers until gpu0 is done. We need to be careful with
         # cross-gpu stuff because each gpu uses a different queue, so operations
         # across queues are not necessarily ordered.
-        self.wait() 
-    
+        self.wait()
+
         # take advantage of between-gpu tranfers if possible (no CPU transfer)
-        bibuf = self.gpus[0].bufs['bi']
+        bibuf = self.gpus[0].bufs["bi"]
         for g in self.gpus[1:]:
-            g.setBuf('bi', bibuf)
+            g.setBuf("bi", bibuf)
 
         # wait so gpu0 doesn't overwrite before other gpus are done copying
-        self.wait() 
+        self.wait()
 
     def wait(self):
         for g in self.gpus:

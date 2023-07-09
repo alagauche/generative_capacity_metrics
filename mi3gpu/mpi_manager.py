@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Mi3-GPU.  If not, see <http://www.gnu.org/licenses/>.
 #
-#Contact: allan.haldane _AT_ gmail.com
+# Contact: allan.haldane _AT_ gmail.com
 
 from node_manager import GPU_node, sumarr, meanarr
 from mpi4py import MPI
@@ -22,6 +22,7 @@ import pyopencl as cl
 import collections
 import numpy as np
 import time
+
 t0 = time.time()
 
 mpi_comm = MPI.COMM_WORLD
@@ -38,6 +39,7 @@ mpi_comm = MPI.COMM_WORLD
 # MPI_GPU_node and MPI_worker together through MPI to provide a GPU_node
 # interface on the manager node, in which the actual computation is performed on
 # a worker node.
+
 
 # This runs on the manager node
 class MPI_multinode_controller(GPU_node):
@@ -60,13 +62,16 @@ class MPI_multinode_controller(GPU_node):
 
     @property
     def gpu_list(self):
-        return [name + ' on node {}'.format(n)
-                for n, node in enumerate(self.nodes) for name in node.gpu_list]
+        return [
+            name + " on node {}".format(n)
+            for n, node in enumerate(self.nodes)
+            for name in node.gpu_list
+        ]
 
     def _zip_gpus(self, lst):
         pos = 0
         for n in self.nodes:
-            yield n, lst[pos:pos + n.ngpus]
+            yield n, lst[pos : pos + n.ngpus]
             pos += n.ngpus
 
     def _initMCMC_rng(self, nsteps, rng_offsets, rng_span):
@@ -88,7 +93,7 @@ class MPI_multinode_controller(GPU_node):
         # each worker has already used groupfunc to collect from GPUs on that
         # node. Now we use groupfunc to collect those results across nodes.
         arrs = (n.collect(bufs) for n in self.nodes)
-        #XXX not anync....
+        # XXX not anync....
 
         if isinstance(bufs, str):
             buftype = bufs.split()[0]
@@ -118,18 +123,25 @@ class MPI_multinode_controller(GPU_node):
             sizes = self.nseq[bufname]
 
             if len(seqs) == sum(sizes):
-                raise Exception(("Expected {} total sequences, got {}").format(
-                                 sum(sizes), len(seqs)))
+                raise Exception(
+                    ("Expected {} total sequences, got {}").format(
+                        sum(sizes), len(seqs)
+                    )
+                )
             seqs = np.split(seqs, np.cumsum(sizes)[:-1])
         elif len(seqs) != self.ngpus:
-            raise Exception(("Expected {} sequence bufs, got {}").format(
-                             self.ngpus, len(seqs)))
+            raise Exception(
+                ("Expected {} sequence bufs, got {}").format(self.ngpus, len(seqs))
+            )
 
         if log:
-            log("Transferring {} seqs to gpu's {} seq buffer...".format(
-                                         str([len(s) for s in seqs]), bufname))
+            log(
+                "Transferring {} seqs to gpu's {} seq buffer...".format(
+                    str([len(s) for s in seqs]), bufname
+                )
+            )
 
-        for n,(node,node_seq) in enumerate(self._zip_gpus(seqs)):
+        for n, (node, node_seq) in enumerate(self._zip_gpus(seqs)):
             node.setSeqs(bufname, node_seq, None)
 
     def reduce_node_bimarg(self):
@@ -139,21 +151,22 @@ class MPI_multinode_controller(GPU_node):
     def merge_bimarg(self):
         self.reduce_node_bimarg()
 
-        head_bi = self.head_node.gpus[0].getBuf('bi')
+        head_bi = self.head_node.gpus[0].getBuf("bi")
         bibufs = [head_bi] + [n.get_head_bi() for n in self.nodes[1:]]
         # final sum done on CPU.
         bi = sumarr([b.read() for b in bibufs])
-        bi = bi/np.sum(bi, axis=1, keepdims=True) # renormalize
+        bi = bi / np.sum(bi, axis=1, keepdims=True)  # renormalize
 
-        self.setBuf('bi', bi)
+        self.setBuf("bi", bi)
 
     def wait(self):
         for n in self.nodes:
             n.wait()
 
     def runMCMC(self):
-        for n,gpu in enumerate(self.gpus):
+        for n, gpu in enumerate(self.gpus):
             gpu.runMCMC()
+
 
 class MPI_comm_Mixin:
     def __init__(self):
@@ -167,13 +180,22 @@ class MPI_comm_Mixin:
     def _debug(self, cmd, tag, val=None):
         if 0:
             n = self._msg_counts.get((cmd, tag), 0)
-            print(">>>>>>{} {: 8.3f}    {} {}/{}:{} <-> {}   {} ".format(
-                  '>>>'*self.self_rank, time.time() - t0,
-                  self.self_rank, cmd, tag, n, self.other_rank, val or ''))
-            self._msg_counts[(cmd, tag)] = n+1
+            print(
+                ">>>>>>{} {: 8.3f}    {} {}/{}:{} <-> {}   {} ".format(
+                    ">>>" * self.self_rank,
+                    time.time() - t0,
+                    self.self_rank,
+                    cmd,
+                    tag,
+                    n,
+                    self.other_rank,
+                    val or "",
+                )
+            )
+            self._msg_counts[(cmd, tag)] = n + 1
 
     def isend(self, val, tag=0):
-        self._debug('isend', tag, repr(val)[:40])
+        self._debug("isend", tag, repr(val)[:40])
         rq = mpi_comm.isend(val, dest=self.other_rank, tag=tag)
         self.waitlist.append(rq)
         self.check_waitlist()
@@ -181,7 +203,7 @@ class MPI_comm_Mixin:
     def Isend_raw(self, dat, tag=0):
         # this version does not send shape/dtype info, it is callers
         # responsibility to do so
-        self._debug('Isend', tag, val='arr: {} {}'.format(dat.shape, dat.dtype))
+        self._debug("Isend", tag, val="arr: {} {}".format(dat.shape, dat.dtype))
         rq = mpi_comm.Isend(dat, dest=self.other_rank, tag=tag)
         self.waitlist.append(rq)
         self.check_waitlist()
@@ -194,23 +216,23 @@ class MPI_comm_Mixin:
         # an isend.
 
     def recv(self, tag=0):
-        #self._debug('recv', tag)
-        #return mpi_comm.recv(source=self.other_rank, tag=tag)
+        # self._debug('recv', tag)
+        # return mpi_comm.recv(source=self.other_rank, tag=tag)
         ret = mpi_comm.recv(source=self.other_rank, tag=tag)
-        self._debug('recv', tag, repr(ret)[:40])
+        self._debug("recv", tag, repr(ret)[:40])
         return ret
 
     def Recv(self, tag=0):
         shape, dtype = self.recv(tag=tag)
         dat = np.empty(shape, dtype)
-        self._debug('Recv', tag, val='arr: {} {}'.format(shape, dtype))
+        self._debug("Recv", tag, val="arr: {} {}".format(shape, dtype))
         mpi_comm.Recv(dat, source=self.other_rank, tag=tag)
         return dat
 
     def Irecv(self, tag=0):
         shape, dtype = self.recv(tag=tag)
         dat = np.empty(shape, dtype)
-        self._debug('IRecv', tag, val='arr: {} {}'.format(shape, dtype))
+        self._debug("IRecv", tag, val="arr: {} {}".format(shape, dtype))
         return FutureBuf_MPI(dat, self.other_rank, tag)
 
 
@@ -242,7 +264,7 @@ class MPI_GPU_node(GPU_node, MPI_comm_Mixin):
         self._nseq = self.recv()
 
         # as a sanity check, confirm number of gpus with worker node
-        assert(ngpus == self._ngpus)
+        assert ngpus == self._ngpus
 
     @property
     def ngpus(self):
@@ -250,7 +272,7 @@ class MPI_GPU_node(GPU_node, MPI_comm_Mixin):
 
     @property
     def gpu_list(self):
-        self.isend('get_gpu_list')
+        self.isend("get_gpu_list")
         return self.recv()
 
     @property
@@ -266,58 +288,58 @@ class MPI_GPU_node(GPU_node, MPI_comm_Mixin):
         return self
 
     def _initMCMC_rng(self, nsteps, rng_offsets, rng_span):
-        self.isend('_initMCMC_rng')
+        self.isend("_initMCMC_rng")
         self.isend((nsteps, rng_offsets, rng_span))
 
     def initLargeBufs(self, nseq):
-        self.isend('initLargeBufs')
+        self.isend("initLargeBufs")
         self.isend(nseq)
 
     def initJstep(self):
-        self.isend('initJstep')
+        self.isend("initJstep")
 
     def runMCMC(self):
-        self.isend('runMCMC')
+        self.isend("runMCMC")
 
-    def calcEnergies(self, seqbufname, Jbufname='J'):
-        self.isend('calcEnergies')
+    def calcEnergies(self, seqbufname, Jbufname="J"):
+        self.isend("calcEnergies")
         self.isend(seqbufname)
         self.isend(Jbufname)
 
     def calcBicounts(self, seqbufname):
-        self.isend('calcBicounts')
+        self.isend("calcBicounts")
         self.isend(seqbufname)
 
-    def bicounts_to_bimarg(self, seqbufname='main'):
-        self.isend('bicounts_to_bimarg')
+    def bicounts_to_bimarg(self, seqbufname="main"):
+        self.isend("bicounts_to_bimarg")
         self.isend(seqbufname)
 
-    def updateJ(self, gamma, pc, Jbuf='dJ'):
-        self.isend('updateJ')
+    def updateJ(self, gamma, pc, Jbuf="dJ"):
+        self.isend("updateJ")
         self.isend((gamma, pc, Jbuf))
 
     def reg_l1z(self, gamma, pc, lJ):
-        self.isend('reg_l1z')
+        self.isend("reg_l1z")
         self.isend((gamma, pc, lJ))
 
     def reg_l2z(self, gamma, pc, lJ):
-        self.isend('reg_l2z')
+        self.isend("reg_l2z")
         self.isend((gamma, pc, lJ))
 
     def reg_X(self, gamma, pc):
-        self.isend('reg_X')
+        self.isend("reg_X")
         self.isend((gamma, pc))
 
     def calcWeights(self, seqbufname):
-        self.isend('calcWeights')
+        self.isend("calcWeights")
         self.isend(seqbufname)
 
     def weightedMarg(self, seqbufname):
-        self.isend('weightedMarg')
+        self.isend("weightedMarg")
         self.isend(seqbufname)
 
     def renormalize_bimarg(self):
-        self.isend('renormalize_bimarg')
+        self.isend("renormalize_bimarg")
 
     # Note on MPI message ordering with tags:
     #
@@ -342,18 +364,18 @@ class MPI_GPU_node(GPU_node, MPI_comm_Mixin):
     # make sure the GPU copy calls are ordered).
 
     def getBuf(self, bufname):
-        self.isend('getBuf')
+        self.isend("getBuf")
         self.isend(bufname)
 
         bufs = []
         for n in range(self._ngpus):
-            bufs.append(self.Irecv(tag=n+1))
+            bufs.append(self.Irecv(tag=n + 1))
         return bufs
 
     def collect(self, bufs):
         # this only gets the 'collected' data from the worker, and passes
         # it back to the multinode_controller for futher collection.
-        self.isend('collect')
+        self.isend("collect")
         self.isend(bufs)
 
         if isinstance(bufs, str):
@@ -361,49 +383,49 @@ class MPI_GPU_node(GPU_node, MPI_comm_Mixin):
         return [self.Recv() for n in range(len(bufs))]
 
     def setBuf(self, bufname, dat):
-        self.isend('setBuf')
+        self.isend("setBuf")
         self.isend(bufname)
         self.isend(isinstance(dat, list))
 
         if isinstance(dat, list):
-            assert(len(dat) == self.ngpus)
+            assert len(dat) == self.ngpus
             for n, buf in enumerate(dat):
                 self.Isend(buf)
         else:
             self.Isend(dat)
 
     def fillBuf(self, bufname, val):
-        self.isend('fillBuf')
+        self.isend("fillBuf")
         self.isend(bufname)
         self.isend(val)
 
     def setSeqs(self, bufname, seqs, log=None):
         # note, unlike node_manager.seqSeqs, here seqs must be a list of len == ngpus
-        self.isend('seqSeqs')
+        self.isend("seqSeqs")
         self.isend(bufname)
-        assert(len(seqs) == self.ngpus)
+        assert len(seqs) == self.ngpus
         for buf in seqs:
             self.Isend(buf)
 
     def fillSeqs(self, seq):
-        self.isend('fillSeqs')
-        #print(repr(seq), type(seq))
+        self.isend("fillSeqs")
+        # print(repr(seq), type(seq))
         self.Isend(seq)
 
     def storeSeqs(self, seqs=None):
-        self.isend('storeSeqs')
+        self.isend("storeSeqs")
         self.isend(seqs is None)
         if seqs is not None:
             self.Isend(seqs)
 
     def clearLargeSeqs(self):
-        self.isend('clearLargeSeqs')
+        self.isend("clearLargeSeqs")
 
     def reduce_node_bimarg(self):
-        self.isend('reduce_node_bimarg')
+        self.isend("reduce_node_bimarg")
 
     def get_head_bi(self):
-        self.isend('get_head_bi')
+        self.isend("get_head_bi")
         return self.Irecv()
 
     def merge_bimarg(self):
@@ -412,10 +434,10 @@ class MPI_GPU_node(GPU_node, MPI_comm_Mixin):
         raise NotImplementedError
 
     def wait(self):
-        self.isend('wait')
+        self.isend("wait")
 
     def logProfile(self):
-        self.isend('logProfile')
+        self.isend("logProfile")
 
 
 # this runs on a worker node
@@ -435,10 +457,10 @@ class MPI_worker(GPU_node, MPI_comm_Mixin):
 
     def listen(self):
         while True:
-            #Note: mpi releases the GIL in blocking calls, so CL callbacks run
+            # Note: mpi releases the GIL in blocking calls, so CL callbacks run
             command = self.recv()
 
-            if command == 'exit':
+            if command == "exit":
                 break
 
             getattr(self, command)()
@@ -517,6 +539,7 @@ class MPI_worker(GPU_node, MPI_comm_Mixin):
             def callback(s):
                 # handle errors in s?
                 self.Isend_raw(b.read(), tag=n)
+
             return callback
 
         bufname = self.recv()
@@ -524,9 +547,10 @@ class MPI_worker(GPU_node, MPI_comm_Mixin):
         for n, b in enumerate(bufs):
             # we send shape/dtype info before callback, since it gives
             # manager more time to allocate a buffer (faster)
-            self.isend((b.shape, b.dtype), tag=n+1)
-            b.event.set_callback(cl.command_execution_status.COMPLETE,
-                                 make_cl_callback(b, n+1))
+            self.isend((b.shape, b.dtype), tag=n + 1)
+            b.event.set_callback(
+                cl.command_execution_status.COMPLETE, make_cl_callback(b, n + 1)
+            )
 
     def readBufs(self):
         # this is implemented on manager node in MPI_GPU_node
@@ -559,9 +583,9 @@ class MPI_worker(GPU_node, MPI_comm_Mixin):
 
     def setSeqs(self, bufname, seqs, log=None):
         bufname = self.recv()
-        seqs = [self.Recv(n+1) for n in range(self.ngpus)]
-        for gpu,seq in zip(self.gpus, seqs):
-            gpu.setBuf('seq ' + bufname, seq)
+        seqs = [self.Recv(n + 1) for n in range(self.ngpus)]
+        for gpu, seq in zip(self.gpus, seqs):
+            gpu.setBuf("seq " + bufname, seq)
 
     def fillSeqs(self):
         seq = self.Recv()
@@ -581,7 +605,8 @@ class MPI_worker(GPU_node, MPI_comm_Mixin):
         raise NotImplementedError
 
     def get_head_bi(self):
-        buf = self.gpus[0].getBuf('bi')
+        buf = self.gpus[0].getBuf("bi")
         self.isend((buf.shape, buf.dtype))
-        buf.event.set_callback(cl.command_execution_status.COMPLETE,
-                               lambda s: self.Isend_raw(buf.read()))
+        buf.event.set_callback(
+            cl.command_execution_status.COMPLETE, lambda s: self.Isend_raw(buf.read())
+        )
