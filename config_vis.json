@@ -1,5 +1,10 @@
 {
-    "which_vis" : ["hams"],
+    "parent_dir_name" : "",
+    "msa_dir" : "example",
+    "output_dir" : "results",
+
+    "skip" : ["progenSeqs", "natural", "trainSeqs", "refSeqs", "synth-vae", "ref-trunc", "target-trunc"],
+
     "vis_seqs" : { 
         "targetSeqs" :      "nat_filt_0.5_10K_target",
         "natural" :         "nat_filt_0.5_1",
@@ -25,8 +30,6 @@
         "svaeSeqs" :    "sVAE"
     },
     "name" : "natcoms_svae",
-    "parent_dir_name" : "",
-    "msa_dir" : "/where/your/msas/are",
     "which_models" : {
         "targetSeqs" :  true,
         "svaeSeqs" :    true, 
@@ -36,11 +39,6 @@
         "deepSeqs" :    true,
         "progenSeqs" :  false
     },
-    "output_dir" : "/where/you/want/the/files/to/go",
-    "skip" : ["progenSeqs", "natural", "trainSeqs", "refSeqs", "synth-vae", "ref-trunc", "target-trunc"],
-    "compute_homs_script" : "compute_r20_all.py",
-    "bvms_script" : "get_bvms_phylo.py",
-    "covars_script" : "get_covars_phylo.py",
     "synth_nat" : "nat",
     "which_size" : "10K",
     "protein" : "Kinase",
@@ -48,7 +46,6 @@
     "A" : 21,
     "ALPHA" : "-ACDEFGHIKLMNPQRSTVWY",
     "zoom" : false,
-    "loglog" : true,
     "alpha" : 1,
     "font" : "Andale Mono",
     "font_scale" : 3,
@@ -60,7 +57,6 @@
     "line_width" : 2,
     "line_alpha" : 0.7,
     "label_padding" : 0.3,
-    "box_font_size" : 1.5,
     "box_padding" : 1,
     "marker_size" : 5,
     "color_set" : { 
@@ -93,15 +89,20 @@
     "make_hams_dist" : true,
     "keep_hams" : 50000,
     "pss" : 3000,
+
+    "compute_homs_script" : "compute_r20_all.py",
     "compute_homs" : false,
     "parse_homs" : false,
     "plot_homs" : true,
+
     "r20_start" : 2,
     "r20_end" : 8,
     "r20_mod" : false,
     "r20_folder" : "r20_l7_nat10K",
     "r20_data_black" : "r20_mi_l7_16NOV_black.npy",
     "r20_data" : "r20_mi_l7_16NOV.npy",
+
+    "covars_script" : "get_covars_phylo.py",
     "compute_all_covars" : false,
     "which_covars" : false,
     "covars" : {
@@ -112,8 +113,11 @@
         "progenSeqs" :  "covars_progenSeqs.npy",
         "deepSeqs" :    "covars_deepSeqs.npy"
     },
-    "compute_all_bvms" : false,
+    "keep_covars" : 500000,
+
     "which_bvms" : "all",
+    "bvms_script" : "get_bvms_phylo.py",
+    "compute_all_bvms" : false,
     "bvms" : {
         "indepSeqs" :   "bvms_indepSeqs.npy", 
         "mi3Seqs" :     "bvms_mi3Seqs.npy", 
@@ -122,7 +126,7 @@
         "progenSeqs" :  "bvms_progenSeqs.npy",
         "deepSeqs" :    "bvms_deepSeqs.npy"
     },
-    "keep_covars" : 500000,
+
     "valseqs" : "valseqs1000",
     "fields_couplings" : {
         "J_Synth-Ref" : "J_Synth-Ref.npy", 

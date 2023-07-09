@@ -1,38 +1,40 @@
 #!/usr/bin/env python
 #
-#Copyright 2019 Allan Haldane.
+# Copyright 2019 Allan Haldane.
 
-#This file is part of Mi3-GPU.
+# This file is part of Mi3-GPU.
 
-#Mi3-GPU is free software: you can redistribute it and/or modify
-#it under the terms of the GNU General Public License as published by
-#the Free Software Foundation, version 3 of the License.
+# Mi3-GPU is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, version 3 of the License.
 
-#Mi3-GPU is distributed in the hope that it will be useful,
-#but WITHOUT ANY WARRANTY; without even the implied warranty of
-#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#GNU General Public License for more details.
+# Mi3-GPU is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 
-#You should have received a copy of the GNU General Public License
-#along with Mi3-GPU.  If not, see <http://www.gnu.org/licenses/>.
+# You should have received a copy of the GNU General Public License
+# along with Mi3-GPU.  If not, see <http://www.gnu.org/licenses/>.
 
-#Contact: allan.haldane _AT_ gmail.com
+# Contact: allan.haldane _AT_ gmail.com
 import sys, argparse
 import numpy as np
 from potts_common import getLq
 
-def getCouplingMatrix(couplings):
-    #compute the blocks that make up Ciajb, that is, compute the block Cij
-    L, q = getLq(couplings)
-    coupleinds = [(a,b) for a in range(L-1) for b in range(a+1, L)]
 
-    C = np.empty((L,q,L,q))
+def getCouplingMatrix(couplings):
+    # compute the blocks that make up Ciajb, that is, compute the block Cij
+    L, q = getLq(couplings)
+    coupleinds = [(a, b) for a in range(L - 1) for b in range(a + 1, L)]
+
+    C = np.empty((L, q, L, q))
     C.fill(np.nan)
-    for n,(i,j) in enumerate(coupleinds):
-        block = couplings[n].reshape(q,q)
-        C[i,:,j,:] = block
-        C[j,:,i,:] = block.T
+    for n, (i, j) in enumerate(coupleinds):
+        block = couplings[n].reshape(q, q)
+        C[i, :, j, :] = block
+        C[j, :, i, :] = block.T
     return C
+
 
 def zeroJGauge(hs, Js, weights=None):
     """
@@ -58,30 +60,30 @@ def zeroJGauge(hs, Js, weights=None):
     """
     L, q, hs, Js = impute_params(hs, Js)
     if np.any(np.isinf(Js)) or np.any(np.isinf(hs)):
-        raise ValueError("Error: Cannot convert to zero gauge because "
-                         "of infinities")
+        raise ValueError("Error: Cannot convert to zero gauge because " "of infinities")
 
     L, q = hs.shape
-    Jx = Js.reshape((L*(L-1)//2, q, q))
+    Jx = Js.reshape((L * (L - 1) // 2, q, q))
 
     if weights is None:
         mJ1, mJ2 = np.mean(Jx, axis=1), np.mean(Jx, axis=2)
         mJ = np.mean(mJ1, axis=1)
     else:
-        weights = weights.reshape((L*(L-1)//2, q, q))
+        weights = weights.reshape((L * (L - 1) // 2, q, q))
         mJ1 = np.average(Jx, weights=weights, axis=1)
         mJ2 = np.average(Jx, weights=weights, axis=2)
-        mJ = np.average(Jx, weights=weights, axis=(1,2))
+        mJ = np.average(Jx, weights=weights, axis=(1, 2))
 
-    J0 = Jx - mJ1[:,None,:] - mJ2[:,:,None] + mJ[:,None,None]
+    J0 = Jx - mJ1[:, None, :] - mJ2[:, :, None] + mJ[:, None, None]
     J0 = J0.reshape((J0.shape[0], q**2))
 
-    h0 = hs - np.sum(mJ)/L
-    i,j = np.triu_indices(L, k=1)
+    h0 = hs - np.sum(mJ) / L
+    i, j = np.triu_indices(L, k=1)
     np.add.at(h0, j, mJ1)
     np.add.at(h0, i, mJ2)
 
     return h0, J0
+
 
 def zeroGauge(hs, Js, weights=None):
     """
@@ -110,6 +112,7 @@ def zeroGauge(hs, Js, weights=None):
     h0 -= np.mean(h0, axis=1, keepdims=True)
     return h0, J0
 
+
 def fieldlessGaugeDistributed(hs, Js, weights=None):
     """
     Converts to a fieldless gauge by evenly distributing each field value h^i_a
@@ -128,11 +131,12 @@ def fieldlessGaugeDistributed(hs, Js, weights=None):
     """
     L, q, hs, Js = impute_params(hs, Js)
     J0 = Js.copy()
-    hd = hs/(L-1)
-    for n,(i,j) in enumerate([(i,j) for i in range(L-1) for j in range(i+1,L)]):
-        J0[n,:] += np.repeat(hd[i,:], q)
-        J0[n,:] += np.tile(hd[j,:], q)
+    hd = hs / (L - 1)
+    for n, (i, j) in enumerate([(i, j) for i in range(L - 1) for j in range(i + 1, L)]):
+        J0[n, :] += np.repeat(hd[i, :], q)
+        J0[n, :] += np.tile(hd[j, :], q)
     return np.zeros(hs.shape), J0
+
 
 def fieldlessGaugeEven(hs, Js, weights=None):
     """
@@ -154,6 +158,7 @@ def fieldlessGaugeEven(hs, Js, weights=None):
     """
     return fieldlessGaugeDistributed(*zeroGauge(hs, Js, weights))
 
+
 def fieldlessGauge(hs, Js, weights=None):
     """
     Converts to a fieldless gauge by moving field values into the J^{0,i}
@@ -173,32 +178,34 @@ def fieldlessGauge(hs, Js, weights=None):
     L, q, hs, Js = impute_params(hs, Js)
 
     J0 = Js.copy()
-    J0[0,:] += np.repeat(hs[0,:], q)
-    for i in range(L-1):
-        J0[i,:] += np.tile(hs[i+1,:], q)
+    J0[0, :] += np.repeat(hs[0, :], q)
+    for i in range(L - 1):
+        J0[i, :] += np.tile(hs[i + 1, :], q)
     return np.zeros(hs.shape), J0
+
 
 def test_transform(L, q, func):
     np.random.seed(1234)
-    J = np.random.rand(L*(L-1)//2, q*q)
+    J = np.random.rand(L * (L - 1) // 2, q * q)
     h = np.random.rand(L, q)
 
     seqs = np.random.randint(q, size=(20, L))
 
     from getSeqEnergies import energies
 
-    e1 = energies(seqs, J) + np.sum(h[np.arange(L),seqs], axis=1)
+    e1 = energies(seqs, J) + np.sum(h[np.arange(L), seqs], axis=1)
 
     hp, Jp = func(h, J)
 
-    ep = energies(seqs, Jp) + np.sum(hp[np.arange(L),seqs], axis=1)
+    ep = energies(seqs, Jp) + np.sum(hp[np.arange(L), seqs], axis=1)
 
     np.set_printoptions(threshold=10, suppress=True)
-    print('dE', e1 - ep)
-    print('h', hp)
-    print('J', Jp)
-    print('mh', np.mean(hp, axis=1))
-    print('mJ', np.mean(Jp, axis=1))
+    print("dE", e1 - ep)
+    print("h", hp)
+    print("J", Jp)
+    print("mh", np.mean(hp, axis=1))
+    print("mJ", np.mean(Jp, axis=1))
+
 
 def tryload(fn):
     if fn is None:
@@ -208,6 +215,7 @@ def tryload(fn):
         return np.load(fn)
     except:
         return np.loadtxt(fn)
+
 
 def impute_params(hin, Jin, err=ValueError, log=lambda x: None):
     if hin is None and Jin is None:
@@ -222,46 +230,54 @@ def impute_params(hin, Jin, err=ValueError, log=lambda x: None):
     if hin is None:
         log("No h supplied, assuming h = 0")
         L, q = jL, jq
-        hin = np.zeros((L,q))
+        hin = np.zeros((L, q))
     elif Jin is None:
         log("No J supplied, assuming J = 0")
         L, q = hL, hq
-        Jin = np.zeros((L*(L-1)//2,q*q))
+        Jin = np.zeros((L * (L - 1) // 2, q * q))
     else:
         if hL != jL or hq != jq:
             err("Error: Size of h does not match size of J")
-            err("Imputed (L, q) of h ({}, {}) does not match J ({}, {})".format(
-                                                                hL, hq, jL, jq))
+            err(
+                "Imputed (L, q) of h ({}, {}) does not match J ({}, {})".format(
+                    hL, hq, jL, jq
+                )
+            )
         L, q = jL, jq
 
     return L, q, hin, Jin
 
+
 def main():
     parser = argparse.ArgumentParser(
-        description='Convert Potts parameters from one gauge to another')
-    parser.add_argument('gauge', choices=['fieldless', 'fieldlessEven',
-                                 'weighted', 'zero', 'minJ', 'zeroJ'])
-    parser.add_argument('-hin')
-    parser.add_argument('-Jin')
-    parser.add_argument('-hout')
-    parser.add_argument('-Jout')
-    parser.add_argument('-weights', help='only needed for weighted gauge')
-    parser.add_argument('--txt', action='store_true',
-                        help='save in text format')
+        description="Convert Potts parameters from one gauge to another"
+    )
+    parser.add_argument(
+        "gauge",
+        choices=["fieldless", "fieldlessEven", "weighted", "zero", "minJ", "zeroJ"],
+    )
+    parser.add_argument("-hin")
+    parser.add_argument("-Jin")
+    parser.add_argument("-hout")
+    parser.add_argument("-Jout")
+    parser.add_argument("-weights", help="only needed for weighted gauge")
+    parser.add_argument("--txt", action="store_true", help="save in text format")
     args = parser.parse_args()
 
-
-    L, q, hin, Jin = impute_params(tryload(args.hin), tryload(args.Jin),
-                                   err=parser.error, log=print)
+    L, q, hin, Jin = impute_params(
+        tryload(args.hin), tryload(args.Jin), err=parser.error, log=print
+    )
 
     weights = None
     if args.weights != None:
         weights = np.load(args.weights)
 
-    gfuncs = {'fieldless':     fieldlessGauge,
-              'fieldlessEven': fieldlessGaugeEven,
-              'zero':          zeroGauge,
-              'zeroJ':         zeroJGauge}
+    gfuncs = {
+        "fieldless": fieldlessGauge,
+        "fieldlessEven": fieldlessGaugeEven,
+        "zero": zeroGauge,
+        "zeroJ": zeroJGauge,
+    }
     h1, J1 = gfuncs[args.gauge](hin, Jin, weights)
 
     savefunc = np.savetxt if args.txt else np.save
@@ -270,6 +286,6 @@ def main():
     if args.Jout:
         savefunc(args.Jout, J1)
 
-if __name__ == '__main__':
-    main()
 
+if __name__ == "__main__":
+    main()

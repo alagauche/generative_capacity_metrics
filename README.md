@@ -21,4 +21,11 @@ After configuring the JSON file appropriately,
 the generative capacityh metrics can be computed and visualized 
 by calling the controller script on the config file as follows::
 
+```
+cd mi3gpu/utils && make
 python controller.py config_vis.json
+```
+
+# TODO
+- FileNotFoundError: [Errno 2] No such file or directory: 'example/nat_filt_0.5_10K_target'
+
